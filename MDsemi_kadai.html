@@ -62,6 +62,12 @@
 <p>
 <button id="startButton">録音開始</button>
 <button id="stopButton">録音停止</button>
+<select id="waveformType">
+    <option value="sine">サイン波</option>
+    <option value="square">矩形波</option>
+    <option value="sawtooth">ノコギリ波</option>
+    <option value="triangle">三角波</option>
+</select>
 </p>
 </div>
 
@@ -69,6 +75,7 @@
 <div id="resultOutput"></div>
 </p>
 
+<script src="audio.js"></script>
 <script>
 // 工夫した点として、上部の「録音開始」、「録音停止」ボタンを固定することで、スクロールしてもボタンを押せるようにしました。
 /*
