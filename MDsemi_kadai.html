@@ -1,0 +1,165 @@
+<html lang="ja">
+  <style>
+    #top {
+      position: sticky;
+      top: 0;
+      background-color: #ffffff;
+      padding-top: 1ex;
+      padding-bottom: 1ex;
+    }
+    h1 {
+      text-align: center;
+    }
+    #startButton {
+      background-color: #c0ffc0;
+      border-radius: 10px;
+      width: 200px;
+      height: 50px;
+      display:block;
+      margin: auto;
+      font-weight: bold;
+      font-size: 20px;
+    }
+    #stopButton {
+      background-color: #ffc2c2;
+      width: 200px;
+      height: 50px;
+      display:block;
+      margin: auto;
+      margin-top: 1ex;
+      font-weight: bold;
+      font-size: 20px;
+    }
+    #yourtext {
+      color: blue;
+      text-align: right;
+      background-color: #eeeeee;
+      padding-top: 1ex;
+      padding-bottom: 1ex;
+    }
+    #answer {
+      background-color: #ffffff;
+      padding-top: 1ex;
+      padding-bottom: 1ex;
+    }
+    #outputting {
+      color:#ddd;
+      text-align: right;
+    }
+    </style>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="Content-Style-Type" content="text/css">
+<meta http-equiv="Content-Script-Type" content="text/javascript">
+<title>Spoken Dialog by Javascript</title>
+</head>
+<body>
+
+<div id="top">
+<h1>課題：音声対話</h1>
+
+<p>
+<button id="startButton">録音開始</button>
+<button id="stopButton">録音停止</button>
+</p>
+</div>
+
+<p>
+<div id="resultOutput"></div>
+</p>
+
+<script>
+// 工夫した点として、上部の「録音開始」、「録音停止」ボタンを固定することで、スクロールしてもボタンを押せるようにしました。
+/*
+俺が作りたいやつ
+イズ！！！！！！
+声で音を作るやつ
+「正弦波で、C1の音を鳴らして」
+「今の音にリバーブを付けて」
+などできればよし
+*/
+// この中身を書いてください。
+// 応答の定義（ハッシュ）    
+var response = {
+    "あなたは誰ですか":"わたしはアレクサではありません",
+    "あなたの名前は":"アンディファインドです",
+    "何歳ですか":"え、わたし、何歳にみえますか",
+    "元気ですか":"元気ですよー",
+    "好きな食べ物は":"焼肉です",
+    "ありがとう":"どういたしまして",
+    "今日の天気は":"窓の外を見てみましょう",
+    "Ok Google":"ググりたいならお手元の端末でお願いします"
+};
+
+const startButton = document.querySelector('#startButton'); // 開始ボタン
+const stopButton = document.querySelector('#stopButton'); // 停止ボタン
+const resultOutput = document.querySelector('#resultOutput'); // 結果出力エリア
+
+if (!'SpeechSynthesisUtterance' in window) {
+    alert("あなたのブラウザはSpeech Synthesis APIに未対応です。");
+}
+const tts = new SpeechSynthesisUtterance(); // TTSインスタンスを生成
+//tts.text = textForm.value; // テキストを設定
+tts.lang = "ja-JP"; // 言語(日本語)、英語の場合はen-US
+tts.rate = 1.0; // 速度
+tts.pitch = 1.0; // 声の高さ
+tts.volume = 1.0; // 音量
+
+SpeechRecognition = webkitSpeechRecognition || SpeechRecognition;
+if (!'SpeechRecognition' in window) {
+    alert("あなたのブラウザはSpeech Recognition APIに未対応です。");
+}
+
+const asr = new SpeechRecognition(); // ASRインスタンスを生成
+asr.lang = "ja-JP"; // 言語（日本語）
+asr.interimResults = true; // 途中結果出力をオン
+asr.continuous = true; // 継続入力をオン
+
+let output = ''; // 出力
+
+// 認識結果が出力されたときのイベントハンドラ
+asr.onresult = function(event){
+    let transcript = event.results[event.resultIndex][0].transcript; // 結果文字列
+
+    let output_not_final = '';
+    if (event.results[event.resultIndex].isFinal) { // 結果が確定（Final）のとき
+        asr.abort(); // 音声認識を停止
+        let responseText = response[transcript];
+        if (responseText) {
+            output += '<div id="yourtext">' + transcript + '</div>';
+            output += '<div id="answer">' + responseText + '</div>';
+            tts.text = responseText;
+        } else {
+            output += '<div id="yourtext">' + transcript + '</div>';
+            output += '<div id="answer">' + transcript + '</div>';
+            tts.text = transcript;
+        }
+
+        // 再生が終了（end）ときのイベントハンドラ（終了したときに実行される）
+        tts.onend = function(event){
+            asr.start(); // 音声認識を再開
+        }
+
+        speechSynthesis.speak(tts); // 再生
+    } else { // 結果がまだ未確定のとき
+        output_not_final = '<div id="outputting">' + transcript + '</div>';
+    }
+    resultOutput.innerHTML = output + output_not_final;
+}
+
+
+// 開始ボタンのイベントハンドラ
+startButton.addEventListener('click', function() {
+    asr.start();
+})
+
+// 停止ボタンのイベントハンドラ
+stopButton.addEventListener('click', function () {
+    asr.abort();
+    asr.stop();
+})
+</script>
+
+</body>
+</html>
