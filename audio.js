@@ -1,75 +1,130 @@
-// Web Audio API ‚ÌƒZƒbƒgƒAƒbƒv
+ï»¿// Web Audio API ã®ã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ—
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 let oscillator = null;
 
-// ‰¹ŠK‚Ìü”g”ƒ}ƒbƒv
+// éŸ³éšã®å‘¨æ³¢æ•°ãƒãƒƒãƒ—
 const noteFrequencies = {
-    'ƒh': 261.63,
-    'ƒŒ': 293.66,
-    'ƒ~': 329.63,
-    'ƒtƒ@': 349.23,
-    'ƒ\': 392.00,
-    'ƒ‰': 440.00,
-    'ƒV': 493.88
+    'C': {
+        3: 130.81,
+        4: 261.63,
+        5: 523.25
+    },
+    'D': {
+        3: 146.83,
+        4: 293.66,
+        5: 587.33
+    },
+    'E': {
+        3: 164.81,
+        4: 329.63,
+        5: 659.25
+    },
+    'F': {
+        3: 174.61,
+        4: 349.23,
+        5: 698.46
+    },
+    'G': {
+        3: 196.00,
+        4: 392.00,
+        5: 783.99
+    },
+    'A': {
+        3: 220.00,
+        4: 440.00,
+        5: 880.00
+    },
+    'B': {
+        3: 246.94,
+        4: 493.88,
+        5: 987.77
+    }
 };
 
-// ‰¹‚ğ¶¬‚·‚éŠÖ”
-function playNote(note, waveform) {
+// éŸ³ã‚’ç”Ÿæˆã™ã‚‹é–¢æ•°
+function playNote(note, octave, waveform) {
     if (oscillator) {
         oscillator.stop();
     }
 
+    const gainNode = audioContext.createGain();
     oscillator = audioContext.createOscillator();
     oscillator.type = waveform;
-    oscillator.frequency.setValueAtTime(noteFrequencies[note], audioContext.currentTime);
+    oscillator.frequency.setValueAtTime(noteFrequencies[note][octave], audioContext.currentTime);
 
-    oscillator.connect(audioContext.destination);
+    // æ³¢å½¢ã”ã¨ã®éŸ³é‡èª¿æ•´
+    let gainValue;
+    switch (waveform) {
+        case 'sine':
+            gainValue = 0.5;
+            break;
+        case 'square':
+            gainValue = 0.2;
+            break;
+        case 'sawtooth':
+            gainValue = 0.2;
+            break;
+        case 'triangle':
+            gainValue = 0.5;
+            break;
+        default:
+            gainValue = 0.5;
+    }
+
+    gainNode.gain.setValueAtTime(gainValue, audioContext.currentTime);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
     oscillator.start();
 
-    // 1•bŒã‚É‰¹‚ğ’â~
+    // 1ç§’å¾Œã«éŸ³ã‚’åœæ­¢
     setTimeout(() => {
         oscillator.stop();
         oscillator = null;
     }, 1000);
 }
 
-// ‰¹º”F¯‚ÌŒ‹‰Ê‚ğˆ—‚·‚éŠÖ”
-function processVoiceInput(transcript) {
-    const waveformType = document.getElementById('waveformType').value;
+// æ³¢å½¢ã®ç¨®é¡ã‚’è¨­å®šã™ã‚‹é–¢æ•°
+function setWaveform(waveformName) {
+    const waveformMap = {
+        'ã‚µã‚¤ãƒ³æ³¢': 'sine',
+        'æ­£å¼¦æ³¢': 'sine',
+        'çŸ©å½¢æ³¢': 'square',
+        'ãƒã‚³ã‚®ãƒªæ³¢': 'sawtooth',
+        'ä¸‰è§’æ³¢': 'triangle'
+    };
 
-    if (noteFrequencies.hasOwnProperty(transcript)) {
-        playNote(transcript, waveformType);
-    } else if (['ƒTƒCƒ“”g', '³Œ·”g', '‹éŒ`”g', 'ƒmƒRƒMƒŠ”g', 'OŠp”g'].includes(transcript)) {
-        // ”gŒ`‚Ìí—Ş‚ğİ’è
-        document.getElementById('waveformType').value = {
-            'ƒTƒCƒ“”g': 'sine',
-            '³Œ·”g': 'sine',
-            '‹éŒ`”g': 'square',
-            'ƒmƒRƒMƒŠ”g': 'sawtooth',
-            'OŠp”g': 'triangle'
-        }[transcript];
+    if (waveformMap.hasOwnProperty(waveformName)) {
+        document.getElementById('waveformType').value = waveformMap[waveformName];
+        return `æ³¢å½¢ã‚’${waveformName}ã«å¤‰æ›´ã—ã¾ã—ãŸã€‚`;
     }
+    return null;
 }
 
-// Šù‘¶‚ÌƒR[ƒh‚ğC³‚µ‚ÄAprocessVoiceInput ŠÖ”‚ğŒÄ‚Ño‚·
-asr.onresult = function (event) {
-    let transcript = event.results[event.resultIndex][0].transcript;
+// éŸ³å£°èªè­˜ã®çµæœã‚’å‡¦ç†ã™ã‚‹é–¢æ•°
+function processVoiceInput(transcript) {
+    const waveformType = document.getElementById('waveformType').value;
+    let response = '';
 
-    if (event.results[event.resultIndex].isFinal) {
-        asr.abort();
-        processVoiceInput(transcript);
-
-        output += '<div id="yourtext">' + transcript + '</div>';
-        output += '<div id="answer">‰¹‚ğÄ¶‚µ‚Ü‚µ‚½</div>';
-
-        tts.text = "‰¹‚ğÄ¶‚µ‚Ü‚µ‚½";
-        tts.onend = function (event) {
-            asr.start();
+    // ã€Œã€œã‚’å†ç”Ÿã—ã¦ã€ã¨ã„ã†ãƒ‘ã‚¿ãƒ¼ãƒ³ã‚’æ¤œå‡º
+    const noteMatch = transcript.match(/([A-Ga-g])\s*(\d)\s*ã‚’å†ç”Ÿã—ã¦/);
+    if (noteMatch) {
+        const note = noteMatch[1].toUpperCase();
+        const octave = parseInt(noteMatch[2]);
+        if (noteFrequencies[note] && noteFrequencies[note][octave]) {
+            playNote(note, octave, waveformType);
+            response = `${note} ${octave}ã®éŸ³ã‚’å†ç”Ÿã—ã¾ã—ãŸã€‚`;
+        } else {
+            response = 'æŒ‡å®šã•ã‚ŒãŸéŸ³éšã¯ç¯„å›²å¤–ã§ã™ã€‚';
         }
-
-        speechSynthesis.speak(tts);
-    } else {
-        output_not_final = '<div id="outputting">' + transcript + '</div>';
+    } 
+    // ã€Œã€œæ³¢ã«å¤‰æ›´ã—ã¦ã€ã¨ã„ã†ãƒ‘ã‚¿ãƒ¼ãƒ³ã‚’æ¤œå‡º
+    else if (transcript.includes('ã«å¤‰æ›´ã—ã¦')) {
+        const waveformResponse = setWaveform(transcript.replace('ã«å¤‰æ›´ã—ã¦', '').trim());
+        if (waveformResponse) {
+            response = waveformResponse;
+        }
     }
-    resultOutput.innerHTML = output + output_not_final;
+
+    return response || 'èªè­˜ã§ãã¾ã›ã‚“ã§ã—ãŸã€‚';
 }
