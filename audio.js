@@ -106,18 +106,16 @@ function processVoiceInput(transcript) {
     const waveformType = document.getElementById('waveformType').value;
     let response = '';
 
-    // 「〜を再生して」というパターンを検出
-    const noteMatch = transcript.match(/([A-Ga-g])\s*(\d)\s*を再生して/);
-    if (noteMatch) {
-        const note = noteMatch[1].toUpperCase();
-        const octave = parseInt(noteMatch[2]);
-        if (noteFrequencies[note] && noteFrequencies[note][octave]) {
-            playNote(note, octave, waveformType);
-            response = `${note} ${octave}の音を再生しました。`;
-        } else {
-            response = '指定された音階は範囲外です。';
-        }
-    } 
+    // 複数の音階を検出
+    const notesMatch = transcript.match(/([A-Ga-g]\s*\d\s*)+/g);
+    if (notesMatch) {
+        const notes = notesMatch[0].match(/[A-Ga-g]\s*\d/g).map(note => {
+            const [noteName, octave] = note.trim().split(' ');
+            return [noteName.toUpperCase(), parseInt(octave)];
+        });
+        playSequentialNotes(notes);
+        response = `${notes.map(n => n.join(' ')).join(', ')}の音を再生しました。`;
+    }
     // 「〜波に変更して」というパターンを検出
     else if (transcript.includes('に変更して')) {
         const waveformResponse = setWaveform(transcript.replace('に変更して', '').trim());
@@ -125,6 +123,44 @@ function processVoiceInput(transcript) {
             response = waveformResponse;
         }
     }
+    // 「コードを教えて」というパターンを検出
+    else if (transcript.includes('コードを教えて')) {
+        window.location.href = "https://www.shinko-music.co.jp/reading_score_piano/p-3-1/"; // URLに移動
+        return response || 'こちらがコードの一覧です。';
+    }
 
     return response || '認識できませんでした。';
+}
+
+// 音を連続再生する関数
+function playSequentialNotes(notes) {
+    const waveformType = document.getElementById('waveformType').value;
+    const gainNode = audioContext.createGain();
+    gainNode.connect(audioContext.destination);
+
+    // 波形ごとの音量調整
+    let gainValue;
+    switch (waveformType) {
+        case 'sine': gainValue = 0.3; break;
+        case 'square': gainValue = 0.1; break;
+        case 'sawtooth': gainValue = 0.1; break;
+        case 'triangle': gainValue = 0.3; break;
+        default: gainValue = 0.3;
+    }
+    gainNode.gain.setValueAtTime(gainValue, audioContext.currentTime);
+
+    notes.forEach((noteInfo, index) => {
+        const [note, octave] = noteInfo;
+        const frequency = noteFrequencies[note][octave];
+
+        setTimeout(() => {
+            const oscillator = audioContext.createOscillator();
+            oscillator.type = waveformType;
+            oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+            oscillator.connect(gainNode);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 1); // 1秒間再生
+        }, index * 1000);
+    });
 }

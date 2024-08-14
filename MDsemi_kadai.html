@@ -80,7 +80,8 @@
 <p>
     <div id="explain">
         このページは、声を使って音を再生するページです。<br>
-        「C 4を再生して」と発言すると、C4の音が再生されます。<br>
+        「C 4」と発言すると、C4の音が再生されます。<br>
+        複数の音符を連続して再生するには、「C 4 E 4 G 4」のように発言してください。<br>
         波形を変更したい場合は、画面左の波形選択ボックスから選択するか、<br>
         「矩形波に変更して」と発言すると変更できます。<br>
         再生できる音階の範囲は、C3からB5までです。<br>
@@ -94,17 +95,6 @@
 
 <script src="audio.js"></script>
 <script>
-// 工夫した点として、上部の「録音開始」、「録音停止」ボタンを固定することで、スクロールしてもボタンを押せるようにしました。
-/*
-俺が作りたいやつ
-イズ！！！！！！
-声で音を作るやつ
-「正弦波で、C1の音を鳴らして」
-「今の音にリバーブを付けて」
-などできればよし
-*/
-// この中身を書いてください。
-
 
 const startButton = document.querySelector('#startButton'); // 開始ボタン
 const stopButton = document.querySelector('#stopButton'); // 停止ボタン
@@ -138,19 +128,20 @@ asr.onresult = function (event) {
 
     if (event.results[event.resultIndex].isFinal) {
         asr.abort();
-        const response = processVoiceInput(transcript);
+        const processedResponse = processVoiceInput(transcript);
 
         output += '<div id="yourtext">' + transcript + '</div>';
-        output += '<div id="answer">' + response + '</div>';
+        output += '<div id="answer">' + (Array.isArray(processedResponse) ? processedResponse[0] : processedResponse) + '</div>';
+        resultOutput.innerHTML = output;
 
         if (response.includes('音を再生しました')) {
             // 音を再生した場合は、音声出力をスキップし、すぐに音声認識を再開
             setTimeout(() => {
                 asr.start();
-            }, 1000); // 音の再生時間（1秒）後に音声認識を再開
+            }, 1000 * processedResponse.split(',').length); // 音の再生時間（1秒）後に音声認識を再開
         } else {
             // それ以外の場合は、通常通り音声出力を行う
-            tts.text = response;
+            tts.text = Array.isArray(processedResponse) ? processedResponse[0] : processedResponse;
             tts.onend = function (event) {
                 asr.start();
             }
@@ -158,8 +149,8 @@ asr.onresult = function (event) {
         }
     } else {
         output_not_final = '<div id="outputting">' + transcript + '</div>';
+        resultOutput.innerHTML = output + output_not_final;
     }
-    resultOutput.innerHTML = output + output_not_final;
 }
 
 // audioContext を起動するためのイベントリスナーを追加
